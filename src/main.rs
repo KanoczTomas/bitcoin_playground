@@ -4,28 +4,22 @@ use hex;
 
 #[allow(non_camel_case_types)]
 type u256 = uint::U256;
+#[allow(non_camel_case_types)]
+type u512 = uint::U512;
 
 #[derive(Debug)]
-struct NonZeroECpoint {
+struct ECpoint {
     x: u256,
     y: u256
 }
 
-impl NonZeroECpoint {
+impl ECpoint {
     fn new(_x: u256, _y: u256) -> Self {
         Self {
             x: _x,
             y: _y
         }
     }
-}
-
-#[derive(Debug)]
-enum ECpoint {
-    ///reprezents the zero point
-    Zero,
-    ///all other EC points
-    Point(NonZeroECpoint)
 }
 
 
@@ -67,27 +61,27 @@ impl EllipticCurve {
             h: u256::default(),
         }
     }
-    pub fn p(&mut self, _p: &str) -> &mut Self{
+    pub fn set_p(&mut self, _p: &str) -> &mut Self{
         self.p = Self::pick_hex_or_dec(_p);
         self
     }
-    pub fn a(&mut self, _a: i64) -> &mut Self{
+    pub fn set_a(&mut self, _a: i64) -> &mut Self{
         self.a = _a;
         self
     }
-    pub fn b(&mut self, _b: i64) -> &mut Self{
+    pub fn set_b(&mut self, _b: i64) -> &mut Self{
         self.b = _b;
         self
     }
-    pub fn g(&mut self, _g: (&str, &str)) -> &mut Self{
+    pub fn set_g(&mut self, _g: (&str, &str)) -> &mut Self{
         self.g = (Self::pick_hex_or_dec(_g.0), Self::pick_hex_or_dec(_g.1));
         self
     }
-    pub fn n(&mut self, _n: &str) -> &mut Self{
+    pub fn set_n(&mut self, _n: &str) -> &mut Self{
         self.n = Self::pick_hex_or_dec(_n);
         self
     }
-    pub fn h(&mut self, _h: &str) -> &mut Self{
+    pub fn set_h(&mut self, _h: &str) -> &mut Self{
         self.h = Self::pick_hex_or_dec(_h);
         self
     }
@@ -101,10 +95,19 @@ enum Errors {
     NoMultiplicativeInverse(u256,u256)
 }
 
+#[derive(Debug,PartialEq)]
+enum PointInfo {
+    OnCurve,
+    NotOnCurve
+}
+
 ///Returns the additive inverse of k modulo p
 ///This function returns the only integer x such that (x + k) % p == 0
 fn a_inverse_mod(k: u256, p: u256) -> u256 {
     //we deal with k > p by taking its reminder
+    if k == u256::from(0){
+        return k
+    }
     let k = k % p;
     let x = p - k;
     assert_eq!((x + k) % p, u256::from(0));
@@ -141,11 +144,41 @@ fn m_inverse_mod(k: u256, p: u256) -> Result<u256, Errors>{
 }
 
 ///Return true if the point lies on the curve
-fn is_on_curve(p: ECpoint, curve: &EllipticCurve) -> bool {
+///None represents the point at infinity
+fn is_on_curve(p: Option<&ECpoint>, curve: &EllipticCurve) -> PointInfo {
     match p {
-        ECpoint::Zero => true,
-        ECpoint::Point(p) => {
-            (p.y * p.y - p.x * p.x * p.x - u256::from(curve.a) * p.x - u256::from(curve.b)) % curve.p == u256::from(0)
+        None => PointInfo::OnCurve,
+        Some(p) => {
+            //y^2 = x^3 + ax + b
+            let x = u512::from(p.x);
+            let y = u512::from(p.y);
+            let p = u512::from(curve.p);
+            let a = u512::from(curve.a);
+            let b = u512::from(curve.b);
+            let y_2 = (y * y) % p;
+            let x_3 = (((x * x) % p ) * x) % p;
+            let minus_x3 = u512::from(a_inverse_mod(x_3.into(), p.into()));
+            let ax = (a * x) % p;
+            let minus_ax = u512::from(a_inverse_mod(ax.into(), p.into()));
+            let minus_b = u512::from(a_inverse_mod(b.into(), p.into()));
+            match (y_2 + minus_x3 + minus_ax + minus_b) % p == u512::zero() {
+                true => PointInfo::OnCurve,
+                false => PointInfo::NotOnCurve
+            }
+        }
+    }
+}
+
+///Returns -point.
+///None represents point at infinity
+fn point_neg(p: Option<&ECpoint>, curve: &EllipticCurve) -> Option<ECpoint> {
+    assert_eq!(is_on_curve(p, curve), PointInfo::OnCurve);
+    match p {
+        None => None,
+        Some(p) => {
+            let result = ECpoint::new(p.x, a_inverse_mod(p.y, curve.p));
+            assert_eq!(is_on_curve(Some(&result), curve), PointInfo::OnCurve);
+            Some(result)
         }
     }
 }
@@ -153,19 +186,32 @@ fn is_on_curve(p: ECpoint, curve: &EllipticCurve) -> bool {
 fn main() {
     let mut secp256k1 = EllipticCurve::new("secp256k1");
     secp256k1
-    .p("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f")
+    .set_p("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f")
     // Curve coefficients.
-    .a(0)
-    .b(7)
+    .set_a(0)
+    .set_b(7)
     // Base point. (a tupple)
-    .g(("0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+    .set_g(("0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
     "0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8"))
     // Subgroup order.
-    .n("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
+    .set_n("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
     // Subgroup cofactor.
-    .h("1");
+    .set_h("1");
 
     println!("{:?}", &secp256k1);
+    let p = ECpoint::new(secp256k1.g.0, secp256k1.g.1);
+    println!("{:?} is {:?}", &p, is_on_curve(Some(&p), &secp256k1));
+    let p = ECpoint::new(
+        u256::from_big_endian(&hex::decode("2dc502956364ac430fbe94cdd6bafda73b1b620b5fed00a813af5c5ea93cf73d").unwrap()),
+        u256::from_big_endian(&hex::decode("72e1ee03ecd1d250a63a4795dd6998b26aeba68048ff8c1e5289bf976309aec1").unwrap())
+    );
+    println!("{:?} is {:?}", &p, is_on_curve(Some(&p), &secp256k1));
+    println!("Negative of {:?} is {:?}", &p, point_neg(Some(&p), &secp256k1));
+    let p = ECpoint::new(secp256k1.g.0 + u256::one(), secp256k1.g.1 + u256::one());
+    println!("{:?} is {:?}", &p, is_on_curve(Some(&p), &secp256k1));
+    println!("Negative of None is {:?}", point_neg(None, &secp256k1));
+    let p = ECpoint::new(u256::zero(), u256::zero());
+    println!("{:?} is {:?}", &p, is_on_curve(Some(&p),&secp256k1));
 
     match m_inverse_mod(u256::from(2), u256::from(10)) {
         Ok(x) => println!("{}", x),
