@@ -179,7 +179,7 @@ fn m_inverse_mod(k: u256, p: u256) -> Result<u256, Errors>{
 
 ///Return true if the point lies on the curve
 ///None represents the point at infinity
-fn is_on_curve<'a>(p: Points<'a>, curve: &EllipticCurve) -> Option<ECpoint> {
+fn maybe_on_curve<'a>(p: Points<'a>, curve: &EllipticCurve) -> Option<ECpoint> {
     match p {
         Points::Infinity => Some(ECpoint::Infinity),
         Points::FinitePoint(point) => {
@@ -210,10 +210,10 @@ fn point_neg<'a>(p: Points<'a>, curve: &EllipticCurve) -> Result<ECpoint, Errors
     match p {
         Points::Infinity => Ok(ECpoint::Infinity),
         Points::FinitePoint(p) => {
-            match is_on_curve(Points::FinitePoint(p), curve).is_some(){
+            match maybe_on_curve(Points::FinitePoint(p), curve).is_some(){
                 true => {
                     let result = Point::new(p.x, a_inverse_mod(p.y, curve.p)?);
-                    match is_on_curve(Points::FinitePoint(&result), curve).is_some(){
+                    match maybe_on_curve(Points::FinitePoint(&result), curve).is_some(){
                         true => Ok(ECpoint::OnCurve(result)),
                         false => Err(Errors::NegativePointNotOnCurve(result))
                     }
@@ -246,7 +246,7 @@ fn main() -> Result<(), Errors> {
     println!("{:?}", &secp256k1);
     let p = Point::new(secp256k1.g.0, secp256k1.g.1);
     println!("{:?} is {}", &p,
-        is_on_curve(Points::FinitePoint(&p), &secp256k1)
+        maybe_on_curve(Points::FinitePoint(&p), &secp256k1)
         // .ok_or_else(|| Errors::PointNotOnCurve(p))
         .map(|_| "on curve")
         .unwrap_or("not on curve")
@@ -255,19 +255,19 @@ fn main() -> Result<(), Errors> {
         u256::from_big_endian(&hex::decode("2dc502956364ac430fbe94cdd6bafda73b1b620b5fed00a813af5c5ea93cf73d").unwrap()),
         u256::from_big_endian(&hex::decode("72e1ee03ecd1d250a63a4795dd6998b26aeba68048ff8c1e5289bf976309aec1").unwrap())
     );
-    println!("{:?} is {:?}", &p, is_on_curve(Points::FinitePoint(&p), &secp256k1));
+    println!("{:?} is {:?}", &p, maybe_on_curve(Points::FinitePoint(&p), &secp256k1));
     println!("Negative of {:?} is {:?}", &p, point_neg(Points::FinitePoint(&p), &secp256k1));
     let p = Point::new(secp256k1.g.0 + u256::one(), secp256k1.g.1 + u256::one());
-    println!("{:?} is {}", &p, is_on_curve(Points::FinitePoint(&p), &secp256k1).map(|_| "on curve").unwrap_or("not on curve"));
+    println!("{:?} is {}", &p, maybe_on_curve(Points::FinitePoint(&p), &secp256k1).map(|_| "on curve").unwrap_or("not on curve"));
     println!("Negative of Infinity is {:?}", point_neg(Points::Infinity, &secp256k1));
     let p = Point::new(u256::zero(), u256::zero());
-    println!("{:?} is {}", &p, is_on_curve(Points::FinitePoint(&p),&secp256k1).map(|_| "on curve").unwrap_or("not on curve"));
+    println!("{:?} is {}", &p, maybe_on_curve(Points::FinitePoint(&p),&secp256k1).map(|_| "on curve").unwrap_or("not on curve"));
     match m_inverse_mod(u256::from(2), u256::from(10)){
         Ok(x) => println!("{}", x),
         Err(err) => println!("{:?}", err)
     }
 
-    is_on_curve(Points::FinitePoint(&p), &secp256k1).ok_or(Errors::PointNotOnCurve(p))?;
+    maybe_on_curve(Points::FinitePoint(&p), &secp256k1).ok_or(Errors::PointNotOnCurve(p))?;
     //this should not evaluate as the above errors out
     m_inverse_mod(u256::from(2), u256::from(10))?;
     Ok(())
@@ -329,14 +329,14 @@ mod tests {
         let g = Point::new(secp256k1.g.0, secp256k1.g.1);
         let g1 = Point::new(secp256k1.g.0 + 1.into(), secp256k1.g.1 + 1.into());
         //base point is on curve
-        assert_eq!(is_on_curve(Points::FinitePoint(&g), &secp256k1), Some(ECpoint::OnCurve(g)));
+        assert_eq!(maybe_on_curve(Points::FinitePoint(&g), &secp256k1), Some(ECpoint::OnCurve(g)));
         //base point +1 is not on curve
-        assert_eq!(is_on_curve(Points::FinitePoint(&g1), &secp256k1), None);
+        assert_eq!(maybe_on_curve(Points::FinitePoint(&g1), &secp256k1), None);
         //infinity is on curve
-        assert_eq!(is_on_curve(Points::Infinity, &secp256k1), Some(ECpoint::Infinity));
+        assert_eq!(maybe_on_curve(Points::Infinity, &secp256k1), Some(ECpoint::Infinity));
         // point (0,0) is not on curve
         let z = Point::new(u256::zero(), u256::zero());
-        assert_eq!(is_on_curve(Points::FinitePoint(&z), &secp256k1), None);
+        assert_eq!(maybe_on_curve(Points::FinitePoint(&z), &secp256k1), None);
     }
     #[test]
     fn test_point_neg() {
