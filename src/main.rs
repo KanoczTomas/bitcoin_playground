@@ -8,7 +8,7 @@ type u256 = uint::U256;
 #[allow(non_camel_case_types)]
 type u512 = uint::U512;
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug,PartialEq,Clone,Copy)]
 struct Point {
     x: u256,
     y: u256
@@ -30,9 +30,9 @@ enum Points<'a> {
 }
 
 #[derive(Debug,PartialEq)]
-enum ECpoint<'a> {
+enum ECpoint {
     Infinity,
-    OnCurve(&'a Point),
+    OnCurve(Point),
 }
 
 
@@ -109,7 +109,11 @@ enum Errors {
     ///The number is not a multiplicative inverse mod p
     NoMultiplicativeInverse(u256,u256),
     ///Zero modulo error
-    ZeroModulo
+    ZeroModulo,
+    ///Point not on curve
+    PointNotOnCurve(Point),
+    ///Negative point not on curve(only happens if point_neg is buggy)
+    NegativePointNotOnCurve(Point)
 }
 
 
@@ -175,7 +179,7 @@ fn m_inverse_mod(k: u256, p: u256) -> Result<u256, Errors>{
 
 ///Return true if the point lies on the curve
 ///None represents the point at infinity
-fn is_on_curve<'a>(p: &'a Points, curve: &EllipticCurve) -> Option<ECpoint<'a>> {
+fn is_on_curve<'a>(p: &'a Points, curve: &EllipticCurve) -> Option<ECpoint> {
     match p {
         Points::Infinity => Some(ECpoint::Infinity),
         Points::FinitePoint(point) => {
@@ -192,7 +196,7 @@ fn is_on_curve<'a>(p: &'a Points, curve: &EllipticCurve) -> Option<ECpoint<'a>> 
             let minus_ax = u512::from(a_inverse_mod(ax.into(), p.into()).ok().unwrap());
             let minus_b = u512::from(a_inverse_mod(b.into(), p.into()).ok().unwrap());
             match (y_2 + minus_x3 + minus_ax + minus_b) % p == u512::zero() {
-                true => Some(ECpoint::OnCurve(point)),
+                true => Some(ECpoint::OnCurve(*point.to_owned())),
                 false => None
             }
         }
@@ -201,17 +205,23 @@ fn is_on_curve<'a>(p: &'a Points, curve: &EllipticCurve) -> Option<ECpoint<'a>> 
 
 ///Returns -point.
 ///None represents point at infinity
-// fn point_neg(p: Option<&ECpoint>, curve: &EllipticCurve) -> Option<ECpoint> {
-//     assert_eq!(is_on_curve(p, curve), PointInfo::OnCurve);
-//     match p {
-//         None => None,
-//         Some(p) => {
-//             let result = ECpoint::new(p.x, a_inverse_mod(p.y, curve.p));
-//             assert_eq!(is_on_curve(Some(&result), curve), PointInfo::OnCurve);
-//             Some(result)
-//         }
-//     }
-// }
+fn point_neg<'a>(p: &'a Points, curve: &EllipticCurve) -> Result<ECpoint, Errors> {
+    match p {
+        Points::Infinity => Ok(ECpoint::Infinity),
+        Points::FinitePoint(p) => {
+            match is_on_curve(&Points::FinitePoint(p), curve).is_some(){
+                true => {
+                    let result = Point::new(p.x, a_inverse_mod(p.y, curve.p)?);
+                    match is_on_curve(&Points::FinitePoint(&result), curve).is_some(){
+                        true => Ok(ECpoint::OnCurve(result)),
+                        false => Err(Errors::NegativePointNotOnCurve(result))
+                    }
+                },
+                false => Err(Errors::PointNotOnCurve(**p))
+            }
+        }
+    }
+}
 
 fn secp256k1_factory() -> EllipticCurve {
     let mut secp256k1 = EllipticCurve::new("secp256k1");
@@ -310,7 +320,7 @@ mod tests {
         let g = Point::new(secp256k1.g.0, secp256k1.g.1);
         let g1 = Point::new(secp256k1.g.0 + 1.into(), secp256k1.g.1 + 1.into());
         //base point is on curve
-        assert_eq!(is_on_curve(&Points::FinitePoint(&g), &secp256k1), Some(ECpoint::OnCurve(&g)));
+        assert_eq!(is_on_curve(&Points::FinitePoint(&g), &secp256k1), Some(ECpoint::OnCurve(g)));
         //base point +1 is not on curve
         assert_eq!(is_on_curve(&Points::FinitePoint(&g1), &secp256k1), None);
         //infinity is on curve
@@ -318,5 +328,21 @@ mod tests {
         // point (0,0) is not on curve
         let z = Point::new(u256::zero(), u256::zero());
         assert_eq!(is_on_curve(&Points::FinitePoint(&z), &secp256k1), None);
+    }
+    #[test]
+    fn test_point_neg() {
+        let secp256k1 = secp256k1_factory();
+        let g = Point::new(secp256k1.g.0, secp256k1.g.1);
+        let g1 = Point::new(secp256k1.g.0 + 1.into(), secp256k1.g.1 + 1.into());
+        let y_inv = a_inverse_mod(g.y, secp256k1.p).unwrap();
+        //negative of (g.x, g.y) is (g.x, -g.y)
+        assert_eq!(point_neg(&Points::FinitePoint(&g), &secp256k1), Ok(ECpoint::OnCurve(Point::new(g.x, y_inv))));
+        //g1 is not on curve so has no negative
+        assert_eq!(point_neg(&Points::FinitePoint(&g1), &secp256k1), Err(Errors::PointNotOnCurve(g1)));
+        //infinity is on curve and is its own negative
+        assert_eq!(point_neg(&Points::Infinity, &secp256k1), Ok(ECpoint::Infinity));
+        //point (0, 0) is not on curve so has no negative
+        let zero = Point::new(0.into(), 0.into());
+        assert_eq!(point_neg(&Points::FinitePoint(&zero), &secp256k1), Err(Errors::PointNotOnCurve(zero)));
     }
 }
