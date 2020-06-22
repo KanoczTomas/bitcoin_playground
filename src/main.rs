@@ -2,6 +2,7 @@
 extern crate bigint;
 use bigint::uint;
 use hex;
+use rand;
 
 #[allow(non_camel_case_types)]
 type u256 = uint::U256;
@@ -260,9 +261,13 @@ fn point_add(point1: &Points, point2: &Points, curve: &EllipticCurve) -> Result<
             else {
                 //This is the case point1 != point2.
                 // m = (y1 - y2) * inverse_mod(x1 - x2, curve.p)
-                m =
-                    (y1 + minus_y2)
-                    * u512::from(m_inverse_mod(u256::from((x1 + minus_x2) % u512::from(curve.p)), curve.p)?);
+                // m =
+                //     (y1 + minus_y2)
+                //     * u512::from(m_inverse_mod(u256::from((x1 + minus_x2) % u512::from(curve.p)), curve.p)?);
+                let y1_minus_y2 = (y1 + minus_y2) % u512::from(curve.p);
+                let x1_minus_x2 = (x1 + minus_x2) % u512::from(curve.p);
+                let inverse_x1_minus_x2 = u512::from(m_inverse_mod(x1_minus_x2.into(), curve.p)?);
+                m = y1_minus_y2 * inverse_x1_minus_x2;
             }
             let m = m % u512::from(curve.p);
             let x3 = ((m * m) + minus_x1 + minus_x2) % u512::from(curve.p);
@@ -301,6 +306,29 @@ fn scalar_mult(k: u256, point: &Points, curve: &EllipticCurve) -> Result<ECpoint
         let result = check_if_on_curve(result.into(), curve)?;
         Ok(result)
     }
+}
+
+fn generate_random_u256() -> u256 {
+    let mut bytes = [0u8; 32];
+    for byte in bytes.iter_mut() {
+        *byte = rand::random::<u8>();
+    }
+    bytes.into()
+}
+
+///Generates a random prive-public key pair.
+fn make_keypair(curve: &EllipticCurve) -> Result<(u256, ECpoint), Errors> {
+    let mut private_key;
+    loop {
+        private_key = generate_random_u256();
+        if private_key >= u256::one() && private_key < curve.n {
+            break;
+        }
+    }
+    let public_key = scalar_mult(private_key, &Points::FinitePoint(Point::from(curve.g)), curve)?;
+    println!("public_key = {:?}", public_key);
+    Ok((private_key, public_key))
+
 }
 
 ///Constructs secp256k1 EllipticCurve
@@ -366,9 +394,11 @@ fn main() -> Result<(), Errors> {
     let p = Point::new(secp256k1.g.0, secp256k1.g.1);
     assert_eq!(scalar_mult(k, &Points::FinitePoint(p), &secp256k1), Ok(ECpoint::OnCurve(result)));
     println!("2 * G = {:?}", result);
+    println!("Alice key pair: {:?}", make_keypair(&secp256k1)?);
+    println!("Bob key pair: {:?}", make_keypair(&secp256k1)?);
 
-    check_if_on_curve(Points::FinitePoint(p), &secp256k1)?;
-    m_inverse_mod(u256::from(2), u256::from(10))?;
+    // check_if_on_curve(Points::FinitePoint(p), &secp256k1)?;
+    // m_inverse_mod(u256::from(2), u256::from(10))?;
     Ok(())
 }
 
@@ -523,5 +553,26 @@ mod tests {
         let result = Point::new(result_x, result_y);
         //255 * G = result
         assert_eq!(scalar_mult(k, &Points::FinitePoint(p), &secp256k1), Ok(ECpoint::OnCurve(result)));
+        let k = u256::from_dec_str("12312385769684547396095365029355369071957339694349689622296638024179682296192").unwrap();
+        let result_x = u256::from_dec_str("107431185289838427080855157233861978627665866704688032938293294398756895973759").unwrap();
+        let result_y = u256::from_dec_str("82111623719113235063168576279035646362600822088127451394020515078876578385407").unwrap();
+        let result = Point::new(result_x, result_y);
+        //12312385769684547396095365029355369071957339694349689622296638024179682296192 * G
+        assert_eq!(scalar_mult(k, &Points::FinitePoint(Point::from(secp256k1.g)), &secp256k1), Ok(ECpoint::OnCurve(result)));
+    }
+    #[test]
+    fn test_generate_random_u256() {
+        let num = generate_random_u256();
+        match num {
+            bigint::U256(_) => {},
+            _ => panic!("return value should be u256")
+        }
+    }
+    #[test]
+    fn test_make_keypair() -> Result<(), Errors>{
+        let secp256k1 = secp256k1_factory();
+        let (private_key, public_key) = make_keypair(&secp256k1)?;
+        assert_eq!(public_key, scalar_mult(private_key, &Points::FinitePoint(Point::from(secp256k1.g)), &secp256k1)?);
+        Ok(())
     }
 }

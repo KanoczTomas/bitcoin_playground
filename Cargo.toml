@@ -10,3 +10,4 @@ edition = "2018"
 rand ="*"
 hex = "*"
 bigint = "*"
+num-bigint = { version = "0.3", features = ["rand"] }
