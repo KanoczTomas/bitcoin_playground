@@ -1,14 +1,6 @@
-#![feature(try_trait)]
-// extern crate bigint;
-// use bigint::uint;
 use hex;
 use rand;
 use uint::construct_uint;
-
-// #[allow(non_camel_case_types)]
-// type U256 = uint::U256;
-// #[allow(non_camel_case_types)]
-// type U512 = uint::U512;
 
 construct_uint! {
     pub struct U256(4);
@@ -89,6 +81,7 @@ impl std::convert::From<ECpoint> for Points {
         }
     }
 }
+
 
 
 #[derive(Debug,PartialEq,Clone,Copy)]
@@ -172,6 +165,21 @@ impl EllipticCurve {
     }
 }
 
+impl std::fmt::Display for EllipticCurve {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        writeln!(f, "EllipticCurve {{")?;
+        writeln!(f, "\tname: {}", self.name)?;
+        writeln!(f, "\tp: {:#x}", self.p)?;
+        writeln!(f, "\ta: {:#x}", self.a)?;
+        writeln!(f, "\tb: {:#x}", self.b)?;
+        writeln!(f, "\tg: {:#x}", ECpoint::OnCurve(Point::from(self.g)))?;
+        writeln!(f, "\tn: {:#x}", self.n)?;
+        writeln!(f, "\th: {:#x}", self.h)?;
+        writeln!(f, "}}")?;
+        Ok(())
+    }
+}
+
 #[derive(Debug,PartialEq)]
 enum Errors {
     ///Zero division error
@@ -247,10 +255,10 @@ fn check_if_on_curve(p: Points, curve: &EllipticCurve) -> Result<ECpoint, Errors
             let b = U512::from(curve.b);
             let y_2 = (y * y) % p;
             let x_3 = (((x * x) % p ) * x) % p;
-            let minus_x3 = U512::from(a_inverse_mod(x_3.into(), p.into()).ok().unwrap());
+            let minus_x3 = U512::from(a_inverse_mod(x_3.into(), p.into())?);
             let ax = (a * x) % p;
-            let minus_ax = U512::from(a_inverse_mod(ax.into(), p.into()).ok().unwrap());
-            let minus_b = U512::from(a_inverse_mod(b.into(), p.into()).ok().unwrap());
+            let minus_ax = U512::from(a_inverse_mod(ax.into(), p.into())?);
+            let minus_b = U512::from(a_inverse_mod(b.into(), p.into())?);
             let check_equation = (y_2 + minus_x3 + minus_ax + minus_b) % p;
             match  check_equation == U512::zero() {
                 true => Ok(ECpoint::OnCurve(point)),
@@ -260,7 +268,7 @@ fn check_if_on_curve(p: Points, curve: &EllipticCurve) -> Result<ECpoint, Errors
     }
 }
 
-///Returns -point or Errors
+///Returns the negative of p (x, -y) or Errors
 fn point_neg(p: Points, curve: &EllipticCurve) -> Result<ECpoint, Errors> {
     match p {
         Points::Infinity => Ok(ECpoint::Infinity),
@@ -279,14 +287,13 @@ fn point_neg(p: Points, curve: &EllipticCurve) -> Result<ECpoint, Errors> {
     }
 }
 ///Returns the result of point1 + point2 on curve according to the group law.
-// fn ec_point_add(point1: &ECpoint, point2: &ECpoint, curve: &EllipticCurve) -> Result<ECpoint, Errors> {
 fn point_add(point1: &Points, point2: &Points, curve: &EllipticCurve) -> Result<ECpoint, Errors> {
     let point1 = check_if_on_curve(*point1, curve)?;
     let point2 = check_if_on_curve(*point2, curve)?;
     match (point1, point2) {
-        (ECpoint::Infinity, ECpoint::Infinity) => return Ok(ECpoint::Infinity),
-        (ECpoint::Infinity, ECpoint::OnCurve(p2)) => return Ok(ECpoint::OnCurve(p2)),
-        (ECpoint::OnCurve(p1), ECpoint::Infinity) => return Ok(ECpoint::OnCurve(p1)),
+        (ECpoint::Infinity, ECpoint::Infinity) => Ok(ECpoint::Infinity),
+        (ECpoint::Infinity, ECpoint::OnCurve(p2)) => Ok(ECpoint::OnCurve(p2)),
+        (ECpoint::OnCurve(p1), ECpoint::Infinity) => Ok(ECpoint::OnCurve(p1)),
         (ECpoint::OnCurve(p1), ECpoint::OnCurve(p2)) => {
             let Point { x: x1, y: y1} = p1;
             let Point { x: x2, y: y2} = p2;
@@ -297,7 +304,6 @@ fn point_add(point1: &Points, point2: &Points, curve: &EllipticCurve) -> Result<
             let minus_x1 = U512::from(a_inverse_mod(x1.into(), curve.p)?);
             let minus_x2 = U512::from(a_inverse_mod(x2.into(), curve.p)?);
             let minus_y2 = U512::from(a_inverse_mod(y2.into(), curve.p)?);
-            // let minus_y1 = U512::from(a_inverse_mod(y1.into(), curve.p)?);
             if x1 == x2 && y1 != y2 {
                 //point +(-point) = 0
                 return Ok(ECpoint::Infinity);
@@ -316,9 +322,6 @@ fn point_add(point1: &Points, point2: &Points, curve: &EllipticCurve) -> Result<
             else {
                 //This is the case point1 != point2.
                 // m = (y1 - y2) * inverse_mod(x1 - x2, curve.p)
-                // m =
-                //     (y1 + minus_y2)
-                //     * U512::from(m_inverse_mod(U256::from((x1 + minus_x2) % U512::from(curve.p)), curve.p)?);
                 let y1_minus_y2 = (y1 + minus_y2) % U512::from(curve.p);
                 let x1_minus_x2 = (x1 + minus_x2) % U512::from(curve.p);
                 let inverse_x1_minus_x2 = U512::from(m_inverse_mod(x1_minus_x2.into(), curve.p)?);
@@ -327,8 +330,7 @@ fn point_add(point1: &Points, point2: &Points, curve: &EllipticCurve) -> Result<
             let m = m % U512::from(curve.p);
             let x3 = ((m * m) + minus_x1 + minus_x2) % U512::from(curve.p);
             let y3 = (y1 + m * ((x3 + minus_x1) % U512::from(curve.p))) % U512::from(curve.p);
-            let minux_y3 = U512::from(a_inverse_mod(y3.into(), curve.p)?);
-            Ok(ECpoint::OnCurve(Point::new(x3.into(), minux_y3.into())))
+            Ok(point_neg(Points::FinitePoint(Point::from((x3.into(), y3.into()))), curve)?)
         }
     }
 }
@@ -364,11 +366,11 @@ fn scalar_mult(k: U256, point: &Points, curve: &EllipticCurve) -> Result<ECpoint
 }
 
 fn generate_random_u256() -> U256 {
-    let mut bytes = [0u8; 32];
+    let mut bytes = [0u64; 4];
     for byte in bytes.iter_mut() {
-        *byte = rand::random::<u8>();
+        *byte = rand::random::<u64>();
     }
-    bytes.into()
+    U256(bytes)
 }
 
 ///Generates a random prive-public key pair.
@@ -381,7 +383,6 @@ fn make_keypair(curve: &EllipticCurve) -> Result<(U256, ECpoint), Errors> {
         }
     }
     let public_key = scalar_mult(private_key, &Points::FinitePoint(Point::from(curve.g)), curve)?;
-    println!("public_key = {:?}", public_key);
     Ok((private_key, public_key))
 
 }
@@ -406,56 +407,27 @@ fn secp256k1_factory() -> EllipticCurve {
 
 fn main() -> Result<(), Errors> {
     let secp256k1 = secp256k1_factory();
-    println!("{:?}", &secp256k1);
-    let p = Point::new(secp256k1.g.0, secp256k1.g.1);
-    println!("{:?} is {}", &p,
-        check_if_on_curve(Points::FinitePoint(p), &secp256k1)
-        // .ok_or_else(|| Errors::PointNotOnCurve(p))
-        .map(|_| "on curve")
-        .unwrap_or("not on curve")
-    );
-    let p = Point::new(
-        U256::from_big_endian(&hex::decode("2dc502956364ac430fbe94cdd6bafda73b1b620b5fed00a813af5c5ea93cf73d").unwrap()),
-        U256::from_big_endian(&hex::decode("72e1ee03ecd1d250a63a4795dd6998b26aeba68048ff8c1e5289bf976309aec1").unwrap())
-    );
-    println!("{:?} is {:?}", &p, check_if_on_curve(Points::FinitePoint(p), &secp256k1));
-    println!("Negative of {:?} is {:?}", &p, point_neg(Points::FinitePoint(p), &secp256k1));
-    let p = Point::new(secp256k1.g.0 + U256::one(), secp256k1.g.1 + U256::one());
-    println!("{:?} is {}", &p, check_if_on_curve(Points::FinitePoint(p), &secp256k1).map(|_| "on curve").unwrap_or("not on curve"));
-    println!("Negative of Infinity is {:?}", point_neg(Points::Infinity, &secp256k1));
-    let p = Point::new(U256::zero(), U256::zero());
-    println!("{:?} is {}", &p, check_if_on_curve(Points::FinitePoint(p),&secp256k1).map(|_| "on curve").unwrap_or("not on curve"));
-    match m_inverse_mod(U256::from(2), U256::from(10)){
-        Ok(x) => println!("{}", x),
-        Err(err) => println!("{:?}", err)
-    }
-    let p1_x = U256::from_dec_str("93032511444448586572795960096940553314020690780422011061136711682476439908486").unwrap();
-    let p1_y = U256::from_dec_str("24170782756704702697334930591920306786018768055625159525941195559726624089280").unwrap();
-    let p1 = Point::new(p1_x, p1_y);
-    let p2_x = U256::from_dec_str("59333657243042948346465692029809134503478384592765371424656931804815875295262").unwrap();
-    let p2_y = U256::from_dec_str("93619890378675464164465240783457470719643004351985897479073520136131107550882").unwrap();
-    let p2 = Point::new(p2_x, p2_y);
-    println!("p1 = {:?}", p1);
-    println!("p2 = {:?}", p2);
-    println!("p1 + p2 = {:?}", point_add(&Points::FinitePoint(p1), &Points::FinitePoint(p2), &secp256k1));
-    println!("G = {:?}", Point::new(secp256k1.g.0, secp256k1.g.1));
-
-
-    let k = U256::from_dec_str("2").unwrap();
-    let result_x = U256::from_dec_str("89565891926547004231252920425935692360644145829622209833684329913297188986597").unwrap();
-    let result_y = U256::from_dec_str("12158399299693830322967808612713398636155367887041628176798871954788371653930").unwrap();
-    let result = Point::new(result_x, result_y);
-    //2 * G = result
-    let p = Point::new(secp256k1.g.0, secp256k1.g.1);
-    assert_eq!(scalar_mult(k, &Points::FinitePoint(p), &secp256k1), Ok(ECpoint::OnCurve(result)));
-    println!("2 * G = {:?}", result);
+    println!("{}", &secp256k1);
+    println!("\n--------------------------------------------------------\n");
+    println!("ECDH data: Alice priv key(a), pub key(A), Bob priv key(b), pub key(B)");
+    #[allow(non_snake_case)]
     let (a, A) = make_keypair(&secp256k1)?;
+    #[allow(non_snake_case)]
     let (b, B) = make_keypair(&secp256k1)?;
-    println!("Alice key pair: {:#x} => {:#x}", a, A);
-    println!("Bob key pair: {:#x} => {:#x}", b, B);
-
-    // check_if_on_curve(Points::FinitePoint(p), &secp256k1)?;
-    // m_inverse_mod(U256::from(2), U256::from(10))?;
+    println!("Alice priv key(a): {:#x}", a);
+    println!("Alice pub key(A): {:#x}", A);
+    println!("");
+    println!("Bob priv key(b): {:#x}", b);
+    println!("Bob pub key(B): {:#x}", B);
+    println!("");
+    println!("Shared key for Alice => a * B");
+    #[allow(non_snake_case)]
+    let B: Points = B.into();
+    println!("==> {:#x}", scalar_mult(a, &B, &secp256k1)?);
+    println!("Shared key for Bob => b * A");
+    #[allow(non_snake_case)]
+    let A: Points = A.into();
+    println!("==> {:#x}", scalar_mult(b, &A, &secp256k1)?);
     Ok(())
 }
 
@@ -622,6 +594,7 @@ mod tests {
         let num = generate_random_u256();
         match num {
             U256(_) => {},
+            #[allow(unreachable_patterns)]
             _ => panic!("return value should be U256")
         }
     }
