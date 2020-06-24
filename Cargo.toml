@@ -9,6 +9,4 @@ edition = "2018"
 [dependencies]
 rand ="*"
 hex = "*"
-# bigint = "*"
 uint = "*"
-num-bigint = { version = "0.3", features = ["rand"] }
