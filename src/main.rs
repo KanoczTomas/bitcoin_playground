@@ -97,6 +97,16 @@ enum ECpoint {
     OnCurve(Point),
 }
 
+impl std::fmt::LowerHex for ECpoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            ECpoint::Infinity => write!(f, "Infinity (0)")?,
+            ECpoint::OnCurve(p) => write!(f, "({:#x}, {:#x})", p.x, p.y)?
+        };
+        Ok(())
+    }
+}
+
 #[derive(Debug)]
 struct EllipticCurve {
     ///name of the curve
@@ -439,8 +449,10 @@ fn main() -> Result<(), Errors> {
     let p = Point::new(secp256k1.g.0, secp256k1.g.1);
     assert_eq!(scalar_mult(k, &Points::FinitePoint(p), &secp256k1), Ok(ECpoint::OnCurve(result)));
     println!("2 * G = {:?}", result);
-    println!("Alice key pair: {:?}", make_keypair(&secp256k1)?);
-    println!("Bob key pair: {:?}", make_keypair(&secp256k1)?);
+    let (a, A) = make_keypair(&secp256k1)?;
+    let (b, B) = make_keypair(&secp256k1)?;
+    println!("Alice key pair: {:#x} => {:#x}", a, A);
+    println!("Bob key pair: {:#x} => {:#x}", b, B);
 
     // check_if_on_curve(Points::FinitePoint(p), &secp256k1)?;
     // m_inverse_mod(U256::from(2), U256::from(10))?;
