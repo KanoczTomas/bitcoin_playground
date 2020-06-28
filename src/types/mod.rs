@@ -12,3 +12,5 @@ pub mod eliptic_curve;
 pub use self::eliptic_curve::EllipticCurve;
 pub mod errors;
 pub use self::errors::Errors;
+pub mod signature;
+pub use self::signature::Signature;

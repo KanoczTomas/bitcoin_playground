@@ -3,3 +3,4 @@ pub mod types;
 pub mod group_math;
 pub mod ec_math;
 pub mod utils;
+pub mod traits;
