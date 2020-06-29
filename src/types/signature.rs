@@ -3,8 +3,8 @@ use crate::types::U256;
 ///Represents an EC signature
 #[derive(Debug, PartialEq)]
 pub struct Signature {
-    r: U256,
-    s: U256
+    pub r: U256,
+    pub s: U256
 }
 
 impl Signature {

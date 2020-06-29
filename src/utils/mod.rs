@@ -4,3 +4,5 @@ pub mod hash_message;
 pub use self::hash_message::hash_message;
 pub mod sign_message;
 pub use self::sign_message::sign_message;
+pub mod verify_signature;
+pub use self::verify_signature::verify_signature;

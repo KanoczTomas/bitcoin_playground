@@ -14,3 +14,5 @@ pub mod errors;
 pub use self::errors::Errors;
 pub mod signature;
 pub use self::signature::Signature;
+pub mod signature_verification;
+pub use self::signature_verification::SignatureVerification;

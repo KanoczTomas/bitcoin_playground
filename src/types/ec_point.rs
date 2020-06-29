@@ -15,3 +15,12 @@ impl std::fmt::LowerHex for ECpoint {
         Ok(())
     }
 }
+
+impl ECpoint {
+    pub fn to_finite_point(self) -> Point {
+        match self {
+            ECpoint::Infinity => panic!("ECpoint.to_finite_point() can not convert Infinity!"),
+            ECpoint::OnCurve(p) => p
+        }
+    }
+}
