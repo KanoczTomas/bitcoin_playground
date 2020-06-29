@@ -1,7 +1,7 @@
 use crate::types::U256;
 
 ///Represents an EC signature
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Signature {
     r: U256,
     s: U256
@@ -25,7 +25,7 @@ impl std::convert::From<(U256, U256)> for Signature {
 impl std::fmt::LowerHex for Signature {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let Signature {r, s} = self;
-        write!(f, "({:#}, {:#})", r, s)?;
+        write!(f, "({:#x}, {:#x})", r, s)?;
         Ok(())
     }
 }

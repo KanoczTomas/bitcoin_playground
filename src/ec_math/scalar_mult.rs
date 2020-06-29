@@ -38,6 +38,8 @@ mod tests {
     #[test]
     fn test_scalar_mult() {
         let secp256k1 = EllipticCurve::secp256k1_factory();
+        #[allow(non_snake_case)]
+        let G = Points::FinitePoint(Point::from(secp256k1.g));
         let k = U256::zero();
         let p = Points::Infinity;
         //0 * 0 = 0
@@ -67,5 +69,11 @@ mod tests {
         let result = Point::new(result_x, result_y);
         //12312385769684547396095365029355369071957339694349689622296638024179682296192 * G
         assert_eq!(scalar_mult(k, &Points::FinitePoint(Point::from(secp256k1.g)), &secp256k1), Ok(ECpoint::OnCurve(result)));
+        //max 256 bit number * G
+        let max = U256::from_dec_str("115792089237316195423570985008687907853269984665640564039457584007913129639935").unwrap();
+        let result_x = U256::from_dec_str("65766924097070208376629306902125118242069746467871217785643147593192657258159").unwrap();
+        let result_y = U256::from_dec_str("109236945745669593534474897756172178689381177381602435107906663179476813370855").unwrap();
+        let result = Point::new(result_x, result_y);
+        assert_eq!(scalar_mult(max, &G, &secp256k1), Ok(ECpoint::OnCurve(result)));
     }
 }
