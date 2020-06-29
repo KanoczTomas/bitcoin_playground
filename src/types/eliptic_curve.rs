@@ -1,6 +1,7 @@
 use crate::types::U256;
 
 #[derive(Debug)]
+/// Holds elliptic curve parameters
 pub struct EllipticCurve {
     ///name of the curve
     pub name: String,
