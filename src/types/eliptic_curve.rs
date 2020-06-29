@@ -1,4 +1,4 @@
-use crate::types::{U256, Point, ECpoint};
+use crate::types::U256;
 
 #[derive(Debug)]
 pub struct EllipticCurve {
@@ -27,7 +27,7 @@ impl EllipticCurve {
             false => U256::from_dec_str(s).unwrap()
         }
     }
-    pub fn new(name: &str) -> Self {
+    fn new(name: &str) -> Self {
         Self {
             name: name.into(),
             p: U256::default(),
@@ -39,28 +39,28 @@ impl EllipticCurve {
             h: U256::default(),
         }
     }
-    fn set_p(&mut self, _p: &str) -> &mut Self{
-        self.p = Self::pick_hex_or_dec(_p);
+    fn set_p(&mut self, p: &str) -> &mut Self{
+        self.p = Self::pick_hex_or_dec(p);
         self
     }
-    fn set_a(&mut self, _a: i64) -> &mut Self{
-        self.a = _a;
+    fn set_a(&mut self, a: i64) -> &mut Self{
+        self.a = a;
         self
     }
-    fn set_b(&mut self, _b: i64) -> &mut Self{
-        self.b = _b;
+    fn set_b(&mut self, b: i64) -> &mut Self{
+        self.b = b;
         self
     }
-    fn set_g(&mut self, _g: (&str, &str)) -> &mut Self{
-        self.g = (Self::pick_hex_or_dec(_g.0), Self::pick_hex_or_dec(_g.1));
+    fn set_g(&mut self, g: (&str, &str)) -> &mut Self{
+        self.g = (Self::pick_hex_or_dec(g.0), Self::pick_hex_or_dec(g.1));
         self
     }
-    fn set_n(&mut self, _n: &str) -> &mut Self{
-        self.n = Self::pick_hex_or_dec(_n);
+    fn set_n(&mut self, n: &str) -> &mut Self{
+        self.n = Self::pick_hex_or_dec(n);
         self
     }
-    fn set_h(&mut self, _h: &str) -> &mut Self{
-        self.h = Self::pick_hex_or_dec(_h);
+    fn set_h(&mut self, h: &str) -> &mut Self{
+        self.h = Self::pick_hex_or_dec(h);
         self
     }
     ///Constructs secp256k1 EllipticCurve
@@ -84,15 +84,7 @@ impl EllipticCurve {
 
 impl std::fmt::Display for EllipticCurve {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        writeln!(f, "EllipticCurve {{")?;
-        writeln!(f, "\tname: {}", self.name)?;
-        writeln!(f, "\tp: {:#x}", self.p)?;
-        writeln!(f, "\ta: {:#x}", self.a)?;
-        writeln!(f, "\tb: {:#x}", self.b)?;
-        writeln!(f, "\tg: {:#x}", ECpoint::OnCurve(Point::from(self.g)))?;
-        writeln!(f, "\tn: {:#x}", self.n)?;
-        writeln!(f, "\th: {:#x}", self.h)?;
-        writeln!(f, "}}")?;
+        writeln!(f, "{:#?}", self)?;
         Ok(())
     }
 }

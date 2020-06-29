@@ -5,7 +5,7 @@ use bitcoin_playground::utils::{make_keypair, sign_message, verify_signature};
 
 fn main() -> Result<(), Errors> {
     let secp256k1 = EllipticCurve::secp256k1_factory();
-    println!("{}", &secp256k1);
+    println!("{:#?}", &secp256k1);
     println!("\n--------------------------------------------------------\n");
     // ECDH
     println!("ECDH data: Alice priv key(a), pub key(A), Bob priv key(b), pub key(B)");
