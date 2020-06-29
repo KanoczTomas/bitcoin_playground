@@ -29,11 +29,11 @@ fn main() -> Result<(), Errors> {
     println!("==> {:#x}", scalar_mult(b, &A, &secp256k1)?);
 
     // ECDSA
-    println!("");
+    println!("\nECDSA\n");
     #[allow(non_snake_case)]
     let (a, A) = make_keypair(&secp256k1)?;
-    println!("Private key: {:#x}", a);
-    println!("Public key: {:#x}", A);
+    println!("Private key(Alice): {:#x}", a);
+    println!("Public key(Alice): {:#x}", A);
     println!("");
 
     let mut rng = rand::thread_rng();
