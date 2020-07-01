@@ -21,13 +21,14 @@ pub struct EllipticCurve {
 
 
 impl EllipticCurve {
-    // if a str is given with 0x it will treat it as hexa string otherwise a decadic number
+    /// if a str is given with 0x it will treat it as hexa string otherwise a decadic number
     fn pick_hex_or_dec(s: &str) -> U256{
         match s.starts_with("0x"){
             true => U256::from_big_endian(&hex::decode(s.trim_start_matches("0x")).unwrap()),
             false => U256::from_dec_str(s).unwrap()
         }
     }
+    /// Creates a new instance filled with defaults
     fn new(name: &str) -> Self {
         Self {
             name: name.into(),
@@ -64,7 +65,7 @@ impl EllipticCurve {
         self.h = Self::pick_hex_or_dec(h);
         self
     }
-    ///Constructs secp256k1 EllipticCurve
+    /// Constructs secp256k1 EllipticCurve
     pub fn secp256k1_factory() -> EllipticCurve {
         let mut secp256k1 = EllipticCurve::new("secp256k1");
         secp256k1

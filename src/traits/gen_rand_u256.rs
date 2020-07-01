@@ -1,9 +1,9 @@
 use crate::types::U256;
 use rand::Rng;
-
 //inspired by https://github.com/rust-num/num-bigint/blob/master/src/bigrand.rs
+
 /// Trait to generate random U256 numbers
-pub trait RandU256 {
+pub trait GenRandU256 {
     /// Generate a random U256.
     fn gen_u256(&mut self) -> U256;
 
@@ -13,7 +13,7 @@ pub trait RandU256 {
     fn gen_u256_range(&mut self, lbound: &U256, ubound: &U256) -> U256;
 }
 
-impl<R: Rng + ?Sized> RandU256 for R {
+impl<R: Rng + ?Sized> GenRandU256 for R {
     fn gen_u256(&mut self) -> U256 {
         let mut data = [0u64; 4];
         self.fill(&mut data);

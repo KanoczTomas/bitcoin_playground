@@ -1,6 +1,6 @@
 use crate::types::U256;
 
-///Represents an EC signature
+/// Represents an EC signature.
 #[derive(Debug, PartialEq)]
 pub struct Signature {
     pub r: U256,
@@ -8,11 +8,9 @@ pub struct Signature {
 }
 
 impl Signature {
+    /// Creates instance of Signature from r, s.
     pub fn new(r: U256, s: U256) -> Self {
-        Signature {
-            r,
-            s
-        }
+        Signature {r, s}
     }
 }
 

@@ -1,23 +1,24 @@
 use crate::types::{U512, Points, EllipticCurve, ECpoint, Errors};
 use crate::group_math::a_inverse_mod;
 
-///Returns Some(ECpoint) if the point lies on the curve None otherwise
-pub fn check_if_on_curve(p: Points, curve: &EllipticCurve) -> Result<ECpoint, Errors> {
+/// Returns Some(ECpoint) if the point lies on the curve None otherwise
+pub fn check_if_on_curve<P: Into<Points>>(p: P, curve: &EllipticCurve) -> Result<ECpoint, Errors> {
+    let p = p.into();
     match p {
         Points::Infinity => Ok(ECpoint::Infinity),
         Points::FinitePoint(point) => {
             //y^2 = x^3 + ax + b
-            let x = U512::from(point.x);
-            let y = U512::from(point.y);
-            let p = U512::from(curve.p);
-            let a = U512::from(curve.a);
-            let b = U512::from(curve.b);
+            let x: U512 = point.x.into();
+            let y: U512 = point.y.into();
+            let p: U512 = curve.p.into();
+            let a: U512 = curve.a.into();
+            let b: U512 = curve.b.into();
             let y_2 = (y * y) % p;
             let x_3 = (((x * x) % p ) * x) % p;
-            let minus_x3 = U512::from(a_inverse_mod(x_3.into(), p.into())?);
+            let minus_x3 = U512::from(a_inverse_mod(x_3, p)?);
             let ax = (a * x) % p;
-            let minus_ax = U512::from(a_inverse_mod(ax.into(), p.into())?);
-            let minus_b = U512::from(a_inverse_mod(b.into(), p.into())?);
+            let minus_ax = U512::from(a_inverse_mod(ax, p)?);
+            let minus_b = U512::from(a_inverse_mod(b, p)?);
             let check_equation = (y_2 + minus_x3 + minus_ax + minus_b) % p;
             match  check_equation == U512::zero() {
                 true => Ok(ECpoint::OnCurve(point)),

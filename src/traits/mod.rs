@@ -1,2 +1,2 @@
-pub mod rand_u256;
-pub use self::rand_u256::RandU256;
+pub mod gen_rand_u256;
+pub use self::gen_rand_u256::GenRandU256;

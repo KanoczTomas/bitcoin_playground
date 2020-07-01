@@ -1,8 +1,8 @@
-use crate::types::{U256, U512, Point, Points, ECpoint, Errors, EllipticCurve};
+use crate::types::{U512, Point, Points, ECpoint, Errors, EllipticCurve};
 use crate::group_math::{a_inverse_mod, m_inverse_mod};
 use crate::ec_math::{check_if_on_curve, point_neg};
 
-///Returns the result of point1 + point2 on curve according to the group law.
+/// Returns the result of point1 + point2 on curve according to the group law.
 pub fn point_add(point1: &Points, point2: &Points, curve: &EllipticCurve) -> Result<ECpoint, Errors> {
     let point1 = check_if_on_curve(*point1, curve)?;
     let point2 = check_if_on_curve(*point2, curve)?;
@@ -13,40 +13,41 @@ pub fn point_add(point1: &Points, point2: &Points, curve: &EllipticCurve) -> Res
         (ECpoint::OnCurve(p1), ECpoint::OnCurve(p2)) => {
             let Point { x: x1, y: y1} = p1;
             let Point { x: x2, y: y2} = p2;
-            let x1 = U512::from(x1);
-            let x2 = U512::from(x2);
-            let y1 = U512::from(y1);
-            let y2 = U512::from(y2);
-            let minus_x1 = U512::from(a_inverse_mod(x1.into(), curve.p)?);
-            let minus_x2 = U512::from(a_inverse_mod(x2.into(), curve.p)?);
-            let minus_y2 = U512::from(a_inverse_mod(y2.into(), curve.p)?);
+            let x1: U512 = x1.into();
+            let x2: U512 = x2.into();
+            let y1: U512 = y1.into();
+            let y2: U512 = y2.into();
+            let p: U512 = curve.p.into();
+            let minus_x1: U512 = a_inverse_mod(x1, p)?.into();
+            let minus_x2: U512 = a_inverse_mod(x2, p)?.into();
+            let minus_y2: U512 = a_inverse_mod(y2, p)?.into();
             if x1 == x2 && y1 != y2 {
-                //point +(-point) = 0
+                // point +(-point) = 0
                 return Ok(ECpoint::Infinity);
             }
             let m: U512;
             if x1 == x2 {
-                //point1 == point2
+                // point1 == point2
                 // m = (3 * x1 * x1 + curve.a) * inverse_mod(2 * y1, curve.p)
-                let x1_2 = (x1 * x1) % U512::from(curve.p);
-                let x1_2_times_3: U512 = (U512::from(3) * x1_2) % U512::from(curve.p);
-                let x1_2_times_3_plus_a = (x1_2_times_3 + U512::from(curve.a)) % U512::from(curve.p);
-                let y1_times_2: U512 = (y1 * U512::from(2)) % U512::from(curve.p);
-                let inverse_y1_times_2 = U512::from(m_inverse_mod(U256::from(y1_times_2), curve.p)?);
+                let x1_2 = (x1 * x1) % p;
+                let x1_2_times_3: U512 = (U512::from(3) * x1_2) % p;
+                let x1_2_times_3_plus_a = (x1_2_times_3 + U512::from(curve.a)) % p;
+                let y1_times_2: U512 = (y1 * U512::from(2)) % p;
+                let inverse_y1_times_2: U512 = m_inverse_mod(y1_times_2, p)?.into();
                 m = x1_2_times_3_plus_a * inverse_y1_times_2;
             }
             else {
-                //This is the case point1 != point2.
+                // This is the case point1 != point2.
                 // m = (y1 - y2) * inverse_mod(x1 - x2, curve.p)
-                let y1_minus_y2 = (y1 + minus_y2) % U512::from(curve.p);
-                let x1_minus_x2 = (x1 + minus_x2) % U512::from(curve.p);
-                let inverse_x1_minus_x2 = U512::from(m_inverse_mod(x1_minus_x2.into(), curve.p)?);
+                let y1_minus_y2 = (y1 + minus_y2) % p;
+                let x1_minus_x2 = (x1 + minus_x2) % p;
+                let inverse_x1_minus_x2: U512 = m_inverse_mod(x1_minus_x2, p)?.into();
                 m = y1_minus_y2 * inverse_x1_minus_x2;
             }
-            let m = m % U512::from(curve.p);
-            let x3 = ((m * m) + minus_x1 + minus_x2) % U512::from(curve.p);
-            let y3 = (y1 + m * ((x3 + minus_x1) % U512::from(curve.p))) % U512::from(curve.p);
-            Ok(point_neg(Points::FinitePoint(Point::from((x3.into(), y3.into()))), curve)?)
+            let m = m % p;
+            let x3 = ((m * m) + minus_x1 + minus_x2) % p;
+            let y3 = (y1 + m * ((x3 + minus_x1) % p)) % p;
+            Ok(point_neg(&Points::FinitePoint(Point::new(x3.into(), y3.into())), curve)?)
         }
     }
 }
@@ -54,7 +55,7 @@ pub fn point_add(point1: &Points, point2: &Points, curve: &EllipticCurve) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use crate::types::U256;
     #[test]
     fn test_point_add() -> Result<(), Errors> {
         let secp256k1 = EllipticCurve::secp256k1_factory();

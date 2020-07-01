@@ -3,6 +3,7 @@ use crate::types::U256;
 use std;
 
 construct_uint! {
+    /// A little endian 512 bit unsigned integer.
     pub struct U512(8);
 }
 

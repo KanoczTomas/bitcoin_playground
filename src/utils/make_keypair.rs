@@ -1,8 +1,8 @@
 use crate::types::{U256, EllipticCurve, Errors, Points, Point, ECpoint};
 use crate::ec_math::scalar_mult;
-use crate::traits::RandU256;
+use crate::traits::GenRandU256;
 
-///Generates a random prive-public key pair.
+/// Generates a random prive-public key pair.
 pub fn make_keypair(curve: &EllipticCurve) -> Result<(U256, ECpoint), Errors> {
     let mut rng = rand::thread_rng();
     let private_key = rng.gen_u256_range(&U256::one(), &curve.n);

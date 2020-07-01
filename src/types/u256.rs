@@ -2,10 +2,12 @@ use uint::construct_uint;
 use crate::types::U512;
 
 construct_uint! {
+    /// A 256 bit little endian unsigned integer.
     pub struct U256(4);
 }
 
 impl U256 {
+    /// Multiply self with b, not loosing precision as math is done on 512 bits.
     pub fn full_mul(self, b: Self) -> U512 {
         let a = U512::from(self);
         let b = U512::from(b);

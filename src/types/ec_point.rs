@@ -1,6 +1,7 @@
 use crate::types::Point;
 
 #[derive(Debug,PartialEq,Clone,Copy)]
+/// Represents a point on curve
 pub enum ECpoint {
     Infinity,
     OnCurve(Point),

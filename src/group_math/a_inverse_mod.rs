@@ -1,8 +1,9 @@
 use crate::types::{U256, Errors};
 
-///Returns the additive inverse of k modulo p
-///This function returns the only integer x such that (x + k) % p == 0
-pub fn a_inverse_mod(k: U256, p: U256) -> Result<U256, Errors> {
+/// Returns the additive inverse of k modulo p.
+/// This function returns the only integer x such that (x + k) % p == 0.
+pub fn a_inverse_mod<T: Into<U256>, U: Into<U256>>(k: T, p: U) -> Result<U256, Errors> {
+    let (k, p) = (k.into(), p.into());
     if k == U256::zero(){
         return Ok(k);
     }

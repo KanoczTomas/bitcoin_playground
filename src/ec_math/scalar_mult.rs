@@ -17,16 +17,13 @@ pub fn scalar_mult(k: U256, point: &Points, curve: &EllipticCurve) -> Result<ECp
         while bits != U256::zero() {
             if bits & U256::one() == U256::one(){
                 //Add
-                let result_as_point: Points = result.into();
-                let addend_as_point: Points = addend.into();
-                result = point_add(&result_as_point, &addend_as_point, curve)?;
+                result = point_add(&result.into(), &addend.into(), curve)?;
             }
             //Double
-            let addend_as_point: Points = addend.into();
-            addend = point_add(&addend_as_point, &addend_as_point, curve)?;
+            addend = point_add(&addend.into(), &addend.into(), curve)?;
             bits = bits >> 1;
         }
-        let result = check_if_on_curve(result.into(), curve)?;
+        let result = check_if_on_curve(result, curve)?;
         Ok(result)
     }
 }

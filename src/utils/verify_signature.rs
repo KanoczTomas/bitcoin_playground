@@ -3,15 +3,18 @@ use crate::utils::hash_message;
 use crate::group_math::m_inverse_mod;
 use crate::ec_math::{point_add, scalar_mult};
 
+/// Given the `signature` verify that the `message` was signed by the prive key of `public_key`.
 pub fn verify_signature(public_key: ECpoint, message: &[u8], signature: &Signature, curve: & EllipticCurve) -> Result<SignatureVerification, Errors> {
     let public_key = public_key.to_finite_point();
-    let z = hash_message(message, curve);
+    let n: U512 = curve.n.into();
+    let z: U512 = hash_message(message, curve.n.bits()).into();
     #[allow(non_snake_case)]
     let G = Points::FinitePoint(Point::from(curve.g));
     let Signature{r, s} = *signature;
-    let s_inv = m_inverse_mod(s, curve.n)?;
-    let u1 = U256::from(s_inv.full_mul(z) % U512::from(curve.n));
-    let u2 = U256::from(s_inv.full_mul(r) % U512::from(curve.n));
+    let r: U512 = r.into();
+    let s_inv: U512 = m_inverse_mod(s, curve.n)?.into();
+    let u1: U256 = ((s_inv *z) % n).into();
+    let u2: U256 = ((s_inv * r) % n).into();
     #[allow(non_snake_case)]
     let u1G = scalar_mult(u1, &G, curve)?;
     let u2public_key = scalar_mult(u2, &Points::FinitePoint(public_key), curve)?;
@@ -20,6 +23,7 @@ pub fn verify_signature(public_key: ECpoint, message: &[u8], signature: &Signatu
     let u2public_key = u2public_key.to_finite_point();
     let res = point_add(&Points::FinitePoint(u1G), &Points::FinitePoint(u2public_key), curve)?.to_finite_point();
     let Point{x, y: _} = res;
+    let r: U256 = r.into();
 
     match r % curve.n == x % curve.n {
         true => Ok(SignatureVerification::Successful),
